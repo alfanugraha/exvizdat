@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(foreign)
+library(skimr)
+```
+
+desa 756
+kec 84
+kab 35
+
+part1 r3-r5
+part2 r6-r7
+part3 r1, r8
+part4 r14-r17
+
+
+r403 x=komoditi,kemudahan transportasi,ketersediaan pasar, lapangan usaha; y=PDRB
+r601 x=peringatan dini,TPS,jumlah evakuasi,perlengkapan keselamatan; y=jumlah korban (*)
+r710 x=pangan bergizi; y=gizi buruk 
+r709 x=sarana kesehatan, jarak, kemudahan untuk mencapai; y=kejadian luar biasa (ada, tidak ada)
+
+```{r}
+## baca metadata podes
+```
+
+
+```{r}
+## baca data podes
+podes2018_1 <- read.dbf("podes2018_desa_part1.dbf")
+podes2018_2 <- read.dbf("podes2018_desa_part2.dbf")
+podes2018_3 <- read.dbf("podes2018_desa_part3.dbf")
+podes2018_4 <- read.dbf("podes2018_desa_part4.dbf")
+
+podes2018_1
+podes2018_2
+podes2018_3
+podes2018_4
+```
+
+```{r}
+skim(podes2018_1)
+```
+
+```{r}
+skim(podes2018_2)
+```
+
+
+```{r}
+skim(podes2018_3)
+```
+
+
+```{r}
+skim(podes2018_4)
+```
