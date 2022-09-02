@@ -6,6 +6,7 @@ output: html_notebook
 ```{r}
 library(foreign)
 library(skimr)
+library(dplyr)
 ```
 
 desa 756
@@ -35,6 +36,21 @@ R601IK2 = Kejadian/bencana alam: Kebakaran hutan dan lahan
 R601JK2 = Kejadian/bencana alam: Kekeringan (lahan)
 
 
+List Provinsi:
+31  DKI JAKARTA
+32  JAWA BARAT
+33  JAWA TENGAH
+34  DI YOGYAKARTA
+35  JAWA TIMUR
+36  BANTEN
+51  BALI
+52  NUSA TENGGARA BARAT
+53  NUSA TENGGARA TIMUR
+81  MALUKU
+82  MALUKU UTARA
+91  PAPUA BARAT
+94  PAPUA
+
 ```{r}
 ## baca metadata podes
 ```
@@ -53,29 +69,69 @@ podes2018_3
 podes2018_4
 ```
 
+### PODES PART 1
+
 ```{r}
 skim(podes2018_1)
 ```
+
+### PODES PART 2
 
 ```{r}
 skim(podes2018_2)
 ```
 
 
+### PODES PART 3
+
 ```{r}
 skim(podes2018_3)
 ```
 
+### PODES PART 4
 
 ```{r}
 skim(podes2018_4)
 ```
 
+## Jumlah kejadian Banjir Bandang di 13 Provinsi pada PODES
+
+R101N = Provinsi
+R601CK2 = Kejadian/bencana alam: Banjir bandang (1=Ada, 2=Tidak Ada)
+R601CK3 = Banyak Kejadian/bencana alam: Banjir bandang 2015
+R601CK4 = Korban Jiwa Banjir bandang 2015
+R601CK5 = Banyak Kejadian/bencana alam: Banjir bandang 2016
+R601CK6 = Korban Jiwa Banjir bandang 2016
+R601CK7 = Banyak Kejadian/bencana alam: Banjir bandang 2017
+R601CK8 = Korban Jiwa Banjir bandang 2017
+
+
 ```{r}
-podes2018_2[which(podes2018_2$R101N=="DKI JAKARTA"),] 
+banjir_bandang <- podes2018_2 %>%
+  select(Prov = R101N, 
+         AdaBanjirBandang = R601CK2, 
+         JmlKejadian15 = R601CK3, 
+         JmlKorban15 = R601CK4, 
+         JmlKejadian16 = R601CK5, 
+         JmlKorban16 = R601CK6, 
+         JmlKejadian17 = R601CK7, 
+         JmlKorban17 = R601CK8) %>%
+  filter(AdaBanjirBandang == 1) 
+banjir_bandang
 ```
+
+R602A=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Sistem peringatan dini bencana alam
+R602B=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Sistem peringatan dini khusus tsunami
+R602C=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Perlengkapan keselamatan (perahu karet, tenda, masker, dll.)
+R602D=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Rambu-rambu dan jalur evakuasi bencana
+R602E=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Pembuatan, perawatan, atau normalisasi: sungai, kanal, tanggul, parit, drainase, waduk, pantai, dll.
+
+
 ```{r}
-## PULAU JAWA ONLY
-podes2018_2[which(podes2018_2$R101N!=c("BALI", "NUSA TENGGARA BARAT", "NUSA TENGGARA TIMUR", "MALUKU", "MALUKU UTARA", "PAPUA BARAT", "PAPUA")),]
+banjir_bandang %>% 
+  group_by(Prov) %>%
+  summarise(total = n())
 ```
+
+
 
