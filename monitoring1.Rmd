@@ -128,10 +128,26 @@ R602E=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/keluraha
 
 
 ```{r}
+# total kejadian
 banjir_bandang %>% 
   group_by(Prov) %>%
   summarise(total = n())
 ```
 
+
+```{r}
+# all
+banjir_bandang %>% 
+  group_by(Prov) %>%
+  summarise(across(everything(), list(sum)))
+```
+
+
+```{r}
+# using skim
+banjir_bandang %>% 
+  group_by(Prov) %>%
+  skim()
+```
 
 
