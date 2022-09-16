@@ -1,0 +1,205 @@
+---
+title: "Tugas Praktikum STA1563: Eksplorasi dan Visualisasi Data"
+author: "Alfa Nugraha^[Mahasiswa Pascasarjana IPB, alfanugraha@apps.ipb.ac.id]"
+date: ""
+output:
+  html_notebook:
+    toc_float: true
+    df_print: paged
+    toc: true
+    theme: flatly
+    highlight: zenburn
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(foreign)
+library(skimr)
+library(dplyr)
+library(reshape2)
+blank_theme <- theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+
+
+library(factoextra)
+library(corrplot)
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(ggcorrplot)
+library(openxlsx)
+library(ggpubr)
+library(MASS)
+```
+
+
+## Pendahuluan
+
+Pulau Jawa adalah salah satu pulau yang memiliki tingkat kejadian bencana alam banjir bandang paling tinggi dibanding pulau-pulau besar maupun pulau kecil lainnya di Indonesia. Serangkaian upaya dilakukan untuk mengantisipasi dan memitigasi bencana alam banjir bandang di Pulau Jawa.
+
+Mitigasi bencana alam sebagai upaya mengurangi risiko bencana diharapkan mampu meminimalisir timbulnya korban di masa depan. Dataset utama yang digunakan adalah Potensi Desa. Selain itu variabel pada dataset INDO-DAPOER digunakan pada tugas ini untuk mendukung analisis eksplorasi kejadian bencana alam banjir bandang di Pulau Jawa pada tahun 2015, 2016, dan 2017 sehingga dapat melihat bagaimana keefektifan mitigasi bencana yang telah dilakukan berdasarkan jumlah korban jiwa yang diakibatkan dari bencana banjir bandang.
+
+## Persiapan
+
+### Membaca data
+
+```{r}
+banjir_bandang_jawa <- read.csv("banjir_bandang_jawa.csv")
+java_dapoer <- read.csv2("java_dapoer_2000_2020.csv", stringsAsFactors = T)
+java_dapoer
+```
+
+### Preview Data
+
+```{r}
+skim(java_dapoer)
+```
+
+
+```{r}
+banjir_bandang_jawa_melt <- banjir_bandang_jawa %>% dplyr::select(Prov, DesaKel, JmlKorban15, JmlKorban16, JmlKorban17) %>%
+  melt(banjir_bandang_jawa, id=c("Prov", "DesaKel"), measure.vars = c("JmlKorban15", "JmlKorban16", "JmlKorban17"), variable.name = "Tahun")
+banjir_bandang_jawa_melt
+```
+
+### Seleksi Data
+
+Dataset INDO-DAPOER yang akan dianalisis adalah:
+
+- GDP on Agriculture, Forestry & Fisheries Sector (in IDR Million), SNA 2008, Current Price
+- GDP on Water Supply, Sewerage, Waste & Recycling Management Sector (in IDR Million), SNA 2008, Current Price
+- GDP on Manufacturing Industry Sector (in IDR Million), SNA 2008, Current Price
+- Poverty Rate (in % of population)
+- Total Expenditure (in IDR)
+- Total Population (in number of people)
+
+
+```{r}
+java_dapoer_sel <- java_dapoer %>% 
+  dplyr::select(Provinsi, Kode, YR2015, YR2016, YR2017) %>%
+  dplyr::filter(Kode %in% c("NA.GDP.AGR.SNA08.CR", "NA.GDP.WTR.WST.SNA08.CR", "NA.GDP.MNF.CR", "SI.POV.NAPR.ZS", "EC.XPD.TOTL.CR", "SP.POP.TOTL"))
+java_dapoer_sel
+```
+
+### Transformasi Data
+
+```{r}
+java_dapoer_melt <- melt(java_dapoer_sel, id=c("Provinsi", "Kode"), measure.vars = c("YR2015", "YR2016", "YR2017"), variable.name = "Tahun")
+java_dapoer_melt <- within(java_dapoer_melt, {Tahun <- ifelse(Tahun=="YR2015" , 2015, ifelse(Tahun=="YR2016", 2016, 2017))})
+java_dapoer_cast <- dcast(java_dapoer_melt, Provinsi + Tahun ~ Kode)
+```
+
+### Agregasi Data
+
+```{r}
+jawa_agg <- aggregate(. ~ Prov + Tahun, data = banjir_bandang_jawa_melt, sum)
+jawa_agg <- jawa_agg %>% dplyr::select(-DesaKel)
+jawa_agg <- within(jawa_agg, {Tahun <- ifelse(Tahun=="JmlKorban15" , 2015, ifelse(Tahun=="JmlKorban16", 2016, 2017))})
+colnames(jawa_agg) <- c("Provinsi", "Tahun", "value")
+jawa_agg$Kode <- "Korban.Jiwa"
+jawa_agg
+```
+
+Banyaknya korban jiwa pada tahun 2015-2017 disajikan pada pie chart berikut:
+
+```{r}
+banjir_bandang_jawa %>% count(Prov, JmlKorban15) %>%
+  mutate(total = JmlKorban15 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    labs(title="Tahun 2015")+
+    blank_theme
+banjir_bandang_jawa %>% count(Prov, JmlKorban16) %>%
+  mutate(total = JmlKorban16 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    labs(title="Tahun 2016")+
+    blank_theme
+banjir_bandang_jawa %>% count(Prov, JmlKorban17) %>%
+  mutate(total = JmlKorban17 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    labs(title="Tahun 2017") +
+    blank_theme
+```
+
+### Merge Data
+
+```{r}
+jawa_agg <- subset(jawa_agg, select = c(Provinsi, Kode, Tahun, value))
+all_data <- rbind(java_dapoer_melt, jawa_agg)
+all_data <- all_data %>% filter(Provinsi != "DKI Jakarta, Prop.")
+all_data
+```
+
+
+## Eksplorasi
+
+Eksplorasi di bawah ini melihat bagaimana pengaruh variabel pada INDO-DAPOER berpengaruh terhadap terjadinya bencana alam banjir bandang.
+
+Berikut ini adalah jumlah korban jiwa di Pulau Jawa tahun 2015-2017
+
+```{r}
+all_data %>% filter(Kode == "Korban.Jiwa") %>%
+  ggplot(aes(x=as.factor(Tahun), y=value, group=Provinsi)) +
+    geom_line(aes(color=Provinsi)) +
+    geom_point(aes(color=Provinsi)) + 
+    labs(title="Jumlah Korban Jiwa", x="Tahun", y = "Korban Jiwa")+
+    theme_classic()
+```
+
+Jumlah populasi (dalam jiwa)
+
+```{r}
+all_data %>% filter(Kode == "SP.POP.TOTL") %>%
+  ggplot(aes(x=as.factor(Tahun), y=value, group=Provinsi)) +
+    geom_line(aes(color=Provinsi)) +
+    geom_point(aes(color=Provinsi)) + 
+    labs(title="Total Populasi", x="Tahun", y = "Jumlah populasi")+
+    theme_classic()
+```
+
+GDP on Agriculture, Forestry & Fisheries Sector (in IDR Million), SNA 2008, Current Price
+
+```{r}
+all_data %>% filter(Kode == "NA.GDP.AGR.SNA08.CR") %>%
+  ggplot(aes(x=as.factor(Tahun), y=value, group=Provinsi)) +
+    geom_line(aes(color=Provinsi)) +
+    geom_point(aes(color=Provinsi)) + 
+    labs(title="GDP on Agriculture, Forestry & Fisheries Sector (in IDR Million), SNA 2008, Current Price", x="Tahun", y = "GDP")+
+    theme_classic()
+```
+Poverty Rate (in % of population)
+
+```{r}
+all_data %>% filter(Kode == "SI.POV.NAPR.ZS") %>%
+  ggplot(aes(x=as.factor(Tahun), y=value, group=Provinsi)) +
+    geom_line(aes(color=Provinsi)) +
+    geom_point(aes(color=Provinsi)) + 
+    labs(title="Poverty Rate (in % of population)", x="Tahun", y = "Percentage")+
+    theme_classic()
+```
+
+GDP on Water Supply, Sewerage, Waste & Recycling Management Sector (in IDR Million), SNA 2008, Current Price
+
+```{r}
+all_data %>% filter(Kode == "NA.GDP.WTR.WST.SNA08.CR") %>%
+  ggplot(aes(x=as.factor(Tahun), y=value, group=Provinsi)) +
+    geom_line(aes(color=Provinsi)) +
+    geom_point(aes(color=Provinsi)) + 
+    labs(title="GDP on Water Supply, Sewerage, Waste & Recycling Management Sector (in IDR Million), SNA 2008, Current Price", x="Tahun", y = "GDP")+
+    theme_classic()
+```
+
+

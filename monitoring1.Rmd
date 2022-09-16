@@ -3,79 +3,97 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(foreign)
 library(skimr)
 library(dplyr)
+library(rgdal)
+library(leaflet)
+blank_theme <- theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
 ```
 
-desa 756
-kec 84
-kab 35
+## Dataset PODES
 
-part1 r3-r5
-part2 r6-r7
-part3 r1, r8
-part4 r14-r17
+- Total jumlah desa = 756
+- Total jumlah kecamatan = 84
+- Total jumlah kabupaten = 35
+
+Judul relevan yang dapat dikembangkan beserta peubah yang mungkin:
+
+- R403 x=komoditi,kemudahan transportasi,ketersediaan pasar, lapangan usaha; y=PDRB
+- R601 x=peringatan dini,TPS,jumlah evakuasi,perlengkapan keselamatan; y=jumlah korban (*)
+- R710 x=pangan bergizi; y=gizi buruk 
+- R709 x=sarana kesehatan, jarak, kemudahan untuk mencapai; y=kejadian luar biasa (ada, tidak ada)
+
+Kodel kejadian bencana alam pada PODES: 
+
+- R601AK2 = Kejadian/bencana alam: Tanah longsor
+- R601BK2 = Kejadian/bencana alam: Banjir
+- R601CK2 = Kejadian/bencana alam: Banjir bandang
+- R601DK2 = Kejadian/bencana alam: Gempa bumi
+- R601EK2 = Kejadian/bencana alam: Tsunami
+- R601FK2 = Kejadian/bencana alam: Gelombang pasang laut
+- R601GK2 = Kejadian/bencana alam: Angin puyuh/puting beliung/topan
+- R601HK2 = Kejadian/bencana alam: Gunung meletus
+- R601IK2 = Kejadian/bencana alam: Kebakaran hutan dan lahan
+- R601JK2 = Kejadian/bencana alam: Kekeringan (lahan)
 
 
-r403 x=komoditi,kemudahan transportasi,ketersediaan pasar, lapangan usaha; y=PDRB
-r601 x=peringatan dini,TPS,jumlah evakuasi,perlengkapan keselamatan; y=jumlah korban (*)
-r710 x=pangan bergizi; y=gizi buruk 
-r709 x=sarana kesehatan, jarak, kemudahan untuk mencapai; y=kejadian luar biasa (ada, tidak ada)
+Daftar Provinsi:
 
-R601AK2 = Kejadian/bencana alam: Tanah longsor
-R601BK2 = Kejadian/bencana alam: Banjir
-R601CK2 = Kejadian/bencana alam: Banjir bandang
-R601DK2 = Kejadian/bencana alam: Gempa bumi
-R601EK2 = Kejadian/bencana alam: Tsunami
-R601FK2 = Kejadian/bencana alam: Gelombang pasang laut
-R601GK2 = Kejadian/bencana alam: Angin puyuh/puting beliung/topan
-R601HK2 = Kejadian/bencana alam: Gunung meletus
-R601IK2 = Kejadian/bencana alam: Kebakaran hutan dan lahan
-R601JK2 = Kejadian/bencana alam: Kekeringan (lahan)
-
-
-List Provinsi:
-31  DKI JAKARTA
-32  JAWA BARAT
-33  JAWA TENGAH
-34  DI YOGYAKARTA
-35  JAWA TIMUR
-36  BANTEN
-51  BALI
-52  NUSA TENGGARA BARAT
-53  NUSA TENGGARA TIMUR
-81  MALUKU
-82  MALUKU UTARA
-91  PAPUA BARAT
-94  PAPUA
-
-```{r}
-## baca metadata podes
-```
-
+- 31 DKI JAKARTA
+- 32 JAWA BARAT
+- 33 JAWA TENGAH
+- 34 DI YOGYAKARTA
+- 35 JAWA TIMUR
+- 36 BANTEN
+- 51 BALI
+- 52 NUSA TENGGARA BARAT
+- 53 NUSA TENGGARA TIMUR
+- 81 MALUKU
+- 82 MALUKU UTARA
+- 91 PAPUA BARAT
+- 94 PAPUA
 
 ```{r}
-## baca data podes
+# load dataset podes part1-4
 podes2018_1 <- read.dbf("podes2018_desa_part1.dbf")
 podes2018_2 <- read.dbf("podes2018_desa_part2.dbf")
 podes2018_3 <- read.dbf("podes2018_desa_part3.dbf")
 podes2018_4 <- read.dbf("podes2018_desa_part4.dbf")
+```
 
-podes2018_1
-podes2018_2
-podes2018_3
-podes2018_4
+```{r}
+#adm0 = indonesia
+#adm1 = provinsi
+#adm2 = kabupaten
+#adm3 = kecamatan
+adm1 <- readOGR("Admin/idn_admbnda_adm1_bps_20200401.shp", "idn_admbnda_adm1_bps_20200401")
+adm2 <- readOGR("Admin/idn_admbnda_adm2_bps_20200401.shp", "idn_admbnda_adm2_bps_20200401")
+adm3 <- readOGR("Admin/idn_admbnda_adm3_bps_20200401.shp", "idn_admbnda_adm3_bps_20200401")
+adm4 <- readOGR("Admin/INDO_DESA_2019.shp", "INDO_DESA_2019")
 ```
 
 ### PODES PART 1
+
+Kode part1 R3-R5
 
 ```{r}
 skim(podes2018_1)
 ```
 
 ### PODES PART 2
+
+Kode part2 R6-R7
 
 ```{r}
 skim(podes2018_2)
@@ -84,19 +102,71 @@ skim(podes2018_2)
 
 ### PODES PART 3
 
+Kode part3 R1, R8
+
 ```{r}
 skim(podes2018_3)
 ```
 
 ### PODES PART 4
 
+Kode part4 R14-R17
+
 ```{r}
 skim(podes2018_4)
 ```
 
-## Jumlah kejadian Banjir Bandang di 13 Provinsi pada PODES
+
+## Bencana Alam & Topografi
+
+
+```{r}
+topo <- podes2018_1 %>% select(R101, R102, R103, R104, R305B)
+podes2018_2 <- merge(podes2018_2, topo, by=c("R101", "R102", "R103", "R104"))
+```
+
+```{r}
+bencana_alam <- podes2018_2 %>% 
+  select(Prov = R101N,
+         KabKot = R102N,
+         Kec = R103N,
+         KodeDesaKel = R104,
+         DesaKel = R104N,
+         AdaTanahLongsor = R601AK2, 
+         AdaBanjir = R601BK2,
+         AdaBanjirBandang = R601CK2, 
+         AdaGempaBumi = R601DK2, 
+         AdaTsunami = R601EK2, 
+         AdaGelPasLaut = R601FK2, 
+         AdaTopan = R601GK2, 
+         AdaGnMeletus = R601HK2, 
+         AdaKebakaranHtn = R601IK2, 
+         AdaKekeringan = R601JK2, 
+  )
+bencana_alam
+```
+
+```{r}
+bencana_alam %>% filter(AdaTanahLongsor == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaBanjir == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaBanjirBandang == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaGempaBumi == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaTsunami == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaGelPasLaut == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaTopan == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaGnMeletus == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaKebakaranHtn == 1) %>% group_by(Prov) %>% summarise(total = n())
+bencana_alam %>% filter(AdaKekeringan == 1) %>% group_by(Prov) %>% summarise(total = n())
+```
+
+
+### Jumlah kejadian Banjir Bandang pada PODES
 
 R101N = Provinsi
+R102N = Kabupaten/Kota
+R103N = Kecamatan
+R104N = Desa/Kelurahan
+R305B = Topografi wilayah desa/kelurahan
 R601CK2 = Kejadian/bencana alam: Banjir bandang (1=Ada, 2=Tidak Ada)
 R601CK3 = Banyak Kejadian/bencana alam: Banjir bandang 2015
 R601CK4 = Korban Jiwa Banjir bandang 2015
@@ -105,49 +175,299 @@ R601CK6 = Korban Jiwa Banjir bandang 2016
 R601CK7 = Banyak Kejadian/bencana alam: Banjir bandang 2017
 R601CK8 = Korban Jiwa Banjir bandang 2017
 
+R602A	= Mitigasi bencana alam: Sistem peringatan dini bencana alam
+R602B	= Mitigasi bencana alam: Sistem peringatan dini khusus tsunami
+R602C	= Mitigasi bencana alam: Perlengkapan keselamatan (perahu karet, tenda, masker, dll.)
+R602D	= Mitigasi bencana alam: Rambu-rambu dan jalur evakuasi bencana
+R602E	= Mitigasi bencana alam: Pembuatan, perawatan, atau normalisasi: sungai, kanal, tanggul, parit, drainase, waduk, pantai, dll.
+
+
+### Mitigasi bencana alam
 
 ```{r}
 banjir_bandang <- podes2018_2 %>%
-  select(Prov = R101N, 
+  select(Prov = R101N,
+         KabKot = R102N,
+         Kec = R103N,
+         KodeDesaKel = R104,
+         DesaKel = R104N,
+         Topografi = R305B,
          AdaBanjirBandang = R601CK2, 
          JmlKejadian15 = R601CK3, 
          JmlKorban15 = R601CK4, 
          JmlKejadian16 = R601CK5, 
          JmlKorban16 = R601CK6, 
          JmlKejadian17 = R601CK7, 
-         JmlKorban17 = R601CK8) %>%
+         JmlKorban17 = R601CK8, 
+         SisBencanaAlam = R602A,
+         SisTsunami = R602B, 
+         Safety = R602C, 
+         Evakuasi = R602D, 
+         MaintainDAS = R602E) %>%
   filter(AdaBanjirBandang == 1) 
 banjir_bandang
 ```
 
-R602A=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Sistem peringatan dini bencana alam
-R602B=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Sistem peringatan dini khusus tsunami
-R602C=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Perlengkapan keselamatan (perahu karet, tenda, masker, dll.)
-R602D=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Rambu-rambu dan jalur evakuasi bencana
-R602E=Fasilitas/upaya antisipasi/mitigasi bencana alam yang ada di desa/kelurahan: Pembuatan, perawatan, atau normalisasi: sungai, kanal, tanggul, parit, drainase, waduk, pantai, dll.
-
-
 ```{r}
-# total kejadian
-banjir_bandang %>% 
-  group_by(Prov) %>%
-  summarise(total = n())
+banjir_bandang$Topografi<-as.factor(banjir_bandang$Topografi)
+banjir_bandang$SisBencanaAlam<-as.factor(banjir_bandang$SisBencanaAlam)
+banjir_bandang$SisTsunami<-as.factor(banjir_bandang$SisTsunami)
+banjir_bandang$Safety<-as.factor(banjir_bandang$Safety)
+banjir_bandang$Evakuasi<-as.factor(banjir_bandang$Evakuasi)
+banjir_bandang$MaintainDAS<-as.factor(banjir_bandang$MaintainDAS)
+skim(banjir_bandang)
 ```
 
-
 ```{r}
-# all
-banjir_bandang %>% 
-  group_by(Prov) %>%
-  summarise(across(everything(), list(sum)))
-```
-
-
-```{r}
-# using skim
+# using skim by prov
 banjir_bandang %>% 
   group_by(Prov) %>%
   skim()
+```
+
+```{r}
+banjir_bandang_jawa <- banjir_bandang %>% 
+  filter(Prov %in% c('DKI JAKARTA', 'JAWA BARAT', 'JAWA TENGAH', 'DI YOGYAKARTA', 'JAWA TIMUR', 'BANTEN')) 
+```
+
+
+```{r}
+banjir_bandang_map <- tigris::geo_join(spatial_data = adm4, data_frame = banjir_bandang_jawa, by_sp="nmdesa", by_df="DesaKel", how="inner")
+banjir_bandang_jawa_map <- banjir_bandang_map[banjir_bandang_map$nmprov == c('DKI JAKARTA', 'JAWA BARAT', 'JAWA TENGAH', 'DI YOGYAKARTA', 'JAWA TIMUR', 'BANTEN'),] 
+```
+
+
+## Eksplorasi Univariate
+
+### Lokasi kejadian berdasarkan desa/kelurahan
+
+```{r}
+pal <- colorQuantile("RdYlBu", NULL, n = 11)
+
+statePopUp <- sprintf(
+  "<strong>%s</strong><br/>
+  Jumlah Kejadian 2015: %s kali<br/>
+  Jumlah Kejadian 2016: %s kali<br/>
+  Jumlah Kejadian 2017: %s kali<br/>",
+  banjir_bandang_jawa_map$nmdesa, banjir_bandang_jawa_map$JmlKejadian15, banjir_bandang_jawa_map$JmlKejadian16, banjir_bandang_jawa_map$JmlKejadian17
+) %>% lapply(htmltools::HTML)
+
+
+leaflet(data = banjir_bandang_jawa_map) %>% addTiles() %>%
+  addPolygons(
+    # fillColor = ~pal(nmdesa), 
+    fillOpacity = 0.7,
+    opacity = 1,
+    color = "#00F",
+    weight = 2,
+    dashArray = 3,
+    highlightOptions = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE
+    ),
+    label = statePopUp,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"
+    )
+  ) 
+```
+
+### Histogram
+
+```{r}
+banjir_bandang_jawa <- banjir_bandang_jawa %>% 
+  mutate(totalKejadian = JmlKejadian15 + JmlKejadian16 + JmlKejadian17) %>%
+  mutate(totalKorban = JmlKorban15 + JmlKorban16 + JmlKorban17)
+```
+
+```{r}
+ggplot(banjir_bandang_jawa, aes(x=totalKejadian)) + 
+  geom_histogram(color="darkblue", fill="lightblue", binwidth = 1) +
+  labs(title="Bencana Alam Banjir Bandang",x="Total Kejadian per Desa", y = "Frekuensi")+
+  theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_jawa, aes(x=totalKejadian)) + 
+  geom_histogram(aes(y=..density..), color="darkblue", fill="lightblue", binwidth = 1) + 
+  geom_density(alpha=.2, fill="#FF6666") +
+  labs(title="Bencana Alam Banjir Bandang",x="Total Kejadian per Desa", y = "Densitas")+
+  theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_jawa, aes(x=totalKejadian, fill=Prov, color=Prov)) +
+  geom_histogram(position = "identity", binwidth = 1) + 
+  labs(title="Bencana Alam Banjir Bandang",x="Total Kejadian per Desa", y = "Frekuensi")+
+  theme_classic()
+```
+
+```{r}
+banjir_bandang_jawa %>% count(Prov, JmlKorban15) %>%
+  mutate(total = JmlKorban15 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    blank_theme
+banjir_bandang_jawa %>% count(Prov, JmlKorban16) %>%
+  mutate(total = JmlKorban16 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    blank_theme
+banjir_bandang_jawa %>% count(Prov, JmlKorban17) %>%
+  mutate(total = JmlKorban17 * n) %>%
+  ggplot(aes(x="", y=total, fill=Prov)) + 
+    geom_bar(stat="identity", width=1) + 
+    coord_polar("y", start=0) +
+    blank_theme
+```
+
+```{r}
+# dcast(banjir_bandang_jawa, DesaKel ~ JmlKorban15, value.var = "JmlKorban15")
+banjir_bandang_jawa_melt <- banjir_bandang_jawa %>% dplyr::select(Prov, DesaKel, JmlKorban15, JmlKorban16, JmlKorban17) %>%
+  melt(banjir_bandang_jawa, id=c("Prov", "DesaKel"), measure.vars = c("JmlKorban15", "JmlKorban16", "JmlKorban17"), variable.name = "Tahun")
+banjir_bandang_jawa_melt
+```
+
+
+```{r}
+ggplot(banjir_bandang_jawa_melt, aes(x=Tahun, y=value, color=Tahun)) +
+  geom_boxplot() +
+  labs(title="", x="Tahun", y = "Banyaknya Korban Banjir Bandang") +
+  theme_classic()
+```
+
+
+
+
+## Eksplorasi Bivariate
+
+```{r}
+banjir_bandang_j <- within(banjir_bandang_jawa, {mitigasi <- ifelse(MaintainDAS==1 , "DAS", 0)})
+banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(Evakuasi==7 , paste0(mitigasi, ", Evakuasi"), 0)})
+banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(Safety==5 , paste0(mitigasi, ", Safety"), 0)})
+banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(SisTsunami==3 , paste0(mitigasi, ", SPDT"), 0)})
+banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(SisBencanaAlam==1 , paste0(mitigasi, ", SPD"), 0)})
+banjir_bandang_j <- within(banjir_bandang_j, {TopoLegend <- ifelse(Topografi==1 , "Lereng", ifelse(Topografi==2, "Lembah", "Daratan"))})
+```
+
+```{r}
+banjir_bandang_j <- banjir_bandang_j %>% 
+  mutate(totalKejadian = JmlKejadian15 + JmlKejadian16 + JmlKejadian17) %>%
+  mutate(totalKorban = JmlKorban15 + JmlKorban16 + JmlKorban17)
+```
+
+
+## Eksplorasi Multivariate
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  labs(title="Jumlah korban bencana banjir bandang per provinsi berdasarkan topografi", x="Provinsi", y = "Korban Jiwa") + 
+  theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~SisBencanaAlam) +
+  labs(title="Jumlah korban bencana banjir bandang dengan upaya sistem peringatan dini", x="Provinsi", y = "Korban Jiwa") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~Safety) +
+  labs(title="Jumlah korban bencana banjir bandang dengan perlengkapan keselamatan", x="Provinsi", y = "Korban Jiwa") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~Evakuasi) +
+  labs(title="Jumlah korban bencana banjir bandang dengan jalur evakuasi", x="Provinsi", y = "Korban Jiwa") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+```
+
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~MaintainDAS) +
+  labs(title="Jumlah korban bencana banjir bandang dengan perawatan DAS", x="Provinsi", y = "Korban Jiwa") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+```
+
+```{r}
+ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+  geom_bar(
+    aes(fill = TopoLegend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~SisTsunami) +
+  labs(title="Jumlah korban bencana banjir bandang dengan peringatan Tsunami", x="Provinsi", y = "Korban Jiwa") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+```
+
+```{r}
+ggballoonplot(banjir_bandang_j, x = "Prov", y = "TopoLegend", size = "totalKorban",
+              fill = "totalKorban", facet.by = "Safety",
+              ggtheme = theme_bw()) +
+  scale_fill_viridis_c(option = "C") +
+  labs(title="Jumlah korban bencana banjir bandang dengan perlengkapan keamanan", x="Provinsi", y = "Korban Jiwa") 
+```
+
+
+```{r}
+ggballoonplot(banjir_bandang_j, x = "Prov", y = "TopoLegend", size = "totalKorban",
+              fill = "totalKorban", facet.by = "Evakuasi",
+              ggtheme = theme_bw()) +
+  scale_fill_viridis_c(option = "C") +
+  labs(title="Jumlah korban bencana banjir bandang dengan jalur evakuasi", x="Provinsi", y = "Korban Jiwa") 
+```
+
+```{r}
+ggballoonplot(banjir_bandang_j, x = "Prov", y = "TopoLegend", size = "totalKorban",
+              fill = "totalKorban", facet.by = "MaintainDAS",
+              ggtheme = theme_bw()) +
+  scale_fill_viridis_c(option = "C") +
+  labs(title="Jumlah korban bencana banjir bandang dengan perawatan DAS", x="Provinsi", y = "Korban Jiwa") 
+```
+
+
+
+```{r}
+java_dapoer_melt <- melt(java_dapoer_sel, id=c("Provinsi", "Kode"), measure.vars = c("YR2015", "YR2016", "YR2017"), variable.name = "Tahun")
+java_dapoer_melt <- within(java_dapoer_melt, {Tahun <- ifelse(Tahun=="YR2015" , 2015, ifelse(Tahun=="YR2016", 2016, 2017))})
+java_dapoer_cast <- dcast(java_dapoer_melt, Provinsi + Tahun ~ Kode)
 ```
 
 

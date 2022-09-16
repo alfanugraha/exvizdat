@@ -1,0 +1,149 @@
+---
+title: "Tugas Praktikum STA1563: Eksplorasi dan Visualisasi Data"
+author: "Alfa Nugraha^[Mahasiswa Pascasarjana IPB, alfanugraha@apps.ipb.ac.id]"
+date: ""
+output:
+  html_notebook:
+    toc_float: true
+    df_print: paged
+    toc: true
+    theme: flatly
+    highlight: zenburn
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(skimr)
+library(ggplot2)
+library(dplyr)
+library(DataExplorer)
+library(reshape2)
+```
+
+
+## Dataset INDO-DAPOER
+
+The Indonesia Database for Policy and Economic Research (INDO-DAPOER) contains relevant economic and social indicators at the province- and district-level, which span across four main categories: fiscal, economic, social and demographic, as well as infrastructure. The data was accessed through this link: https://databank.worldbank.org/reports.aspx?source=1266
+
+The column of dataset contains:
+
+- `ProvName`: Province name
+- `ProvCode`: Province code
+- `SeriesName`: Indicator name of fiscal, economic, social and demographic, and infrastructure
+- `SeriesCode`: Indicator code
+- `YR1976` - `YR2020`: The value of each indicator from 1976-2020
+
+
+### Data preparation
+
+```{r}
+indo_dapoer <- read.csv2("indo_dapoer.csv", stringsAsFactors = T)
+indo_dapoer
+```
+
+### Summary
+
+```{r}
+str(indo_dapoer)
+```
+
+```{r}
+skim(indo_dapoer)
+```
+
+```{r}
+plot_intro(indo_dapoer)
+```
+
+
+## Exploration
+
+### Villages with road
+
+- Source: BADAN PUSAT STATISTIK - Statistics Indonesia, Village Census (PODES)
+- Topic: Infrastructure Indicators
+- Unit of Measures: Percent
+- Periodicity: Triennial
+- General Comments: Data only available once in three years: 1996, 2000, 2003, 2005, 2008, 2011, 2014, 2018.
+- Other Notes: World Bank Staff Calculation based on Village Census (PODES) - Statistics Indonesia
+- Type of road: Asphalt, Dirt, Gravel, Other
+
+
+```{r}
+rod_vilg <- indo_dapoer %>% 
+  filter(SeriesCode %in% c("ROD.VILG.ASPH.ZS", "ROD.VILG.DIRT.ZS", "ROD.VILG.GRAVL.ZS", "ROD.VILG.OTHR.ZS")) %>%
+  select(c(ProvCode, SeriesCode, YR1996, YR2000, YR2003, YR2005, YR2008, YR2011, YR2014, YR2018)) %>%
+  mutate(Total = apply(rod_vilg[3:8], 1, sum))
+rod_vilg
+```
+
+```{r}
+rod_vilg_cast <- dcast(rod_vilg, ProvCode ~ SeriesCode, value.var = 'Total')
+rod_vilg_sum <- data.frame(road=c("Asphalt", "Dirt", "Gravel", "Other"), total=apply(rod_vilg_cast[, 2:5], 2, sum))
+ggplot(rod_vilg_sum, aes(road, total)) + geom_col()
+```
+
+```{r}
+rod_vilg_y_cast <- dcast(rod_vilg, ProvCode ~ SeriesCode)
+rod_vilg_y_cast
+# apply(rod_vilg_cast[, 2:5], 2, sum)
+# ggplot(rod_vilg[1,], aes(x=ProvCode, y=Total)) + geom_point() + geom_smooth()
+```
+
+
+
+```{r}
+dense <- density(rod_vilg$Total, bw=1, kernel="epanechnikov")
+hist(rod_vilg$Total, freq = FALSE, breaks = 15, col = "skyblue1", main = "", xlab = "Total")
+lines(dense, col="blue", lwd=2, main="", ylim=c(0, 0.09))
+```
+
+
+```{r}
+ggplot(rod_vilg, aes(x=Total, color=SeriesCode, fill=SeriesCode)) +
+  geom_bar() + 
+  scale_x_binned()
+```
+```{r}
+ggplot(rod_vilg, aes(x=Total, after_stat(density), colour=SeriesCode)) +
+  geom_freqpoly(binwidth = 500)
+```
+
+
+```{r}
+boxplot(rod_vilg$Total ~ rod_vilg$ProvCode,
+        col= c("coral","green","skyblue", "red"),
+        ylab= "Mother Age (year)",
+        xlab = "Race")
+```
+
+
+#### Asphalt (in % of total villages)
+
+```{r}
+rod_vilg_asph <- rod_vilg %>% 
+  filter(SeriesCode %in% c("ROD.VILG.ASPH.ZS")) 
+rod_vilg_asph
+```
+
+```{r}
+ggplot(rod_vilg, aes(x=ProvCode, y=Total)) + geom_point() + geom_smooth()
+```
+
+```{r}
+hist(rod_vilg_asph$Total)
+```
+
+
+```{r}
+boxplot(rod_vilg_asph$Total, horizontal = T, col = 'coral', xlab="Asphalt (in % of total villages)")
+```
+
+```{r}
+boxplot(rod_vilg_asph$YR1996, horizontal = T, col = 'coral', xlab="Asphalt (in % of total villages)")
+```
+
+## References
+
+- Data Catalog. https://datacatalog.worldbank.org/search/dataset/0041056

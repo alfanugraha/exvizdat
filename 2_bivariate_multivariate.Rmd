@@ -1,0 +1,349 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(factoextra)
+library(corrplot)
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(ggcorrplot)
+library(openxlsx)
+library(ggpubr)
+library(MASS)
+```
+
+
+```{r}
+data_mall <- read.csv("Mall_Customers.csv")
+str(data_mall)
+```
+
+```{r}
+data_mall <- data_mall[,c("Age","Annual.Income","Spending.Score")]
+head(data_mall)
+```
+
+```{r}
+data_mall_standardize <- scale(data_mall)
+apply(data_mall_standardize,2,mean)
+apply(data_mall_standardize,2,sd)
+```
+
+
+```{r}
+fviz_nbclust(data_mall_standardize,FUNcluster = kmeans,method = "silhouette")
+```
+
+
+
+```{r}
+fviz_nbclust(data_mall_standardize,FUNcluster = kmeans,method = "wss")
+```
+
+
+```{r}
+fviz_nbclust(data_mall_standardize,FUNcluster = kmeans, k.max = 20, method = "wss")
+```
+
+
+```{r}
+kmeans_mall <- eclust(data_mall, stand = TRUE, FUNcluster = "kmeans", k=4, graph = F)
+kmeans_mall$cluster
+```
+
+```{r}
+kmeans_mall$centers
+```
+
+```{r}
+aggregate(data_mall,by =list(cluster=kmeans_mall$cluster), FUN = mean)
+```
+
+
+```{r}
+fviz_cluster(kmeans_mall)
+```
+
+```{r}
+pca_mall <- prcomp(data_mall_standardize)
+pca_mall$rotation
+```
+## Hierarchical Clustering Method
+
+```{r}
+#complete
+fviz_nbclust(data_mall_standardize,FUNcluster = hcut,method = "silhouette",
+             hc_method = "complete",hc_metric = "euclidean")
+```
+
+
+```{r}
+#average
+fviz_nbclust(data_mall_standardize,FUNcluster = hcut,method = "silhouette",
+             hc_method = "average",hc_metric = "euclidean")
+```
+
+
+```{r}
+#centroid
+fviz_nbclust(data_mall_standardize,FUNcluster = hcut,method = "silhouette",
+             hc_method = "centroid",hc_metric = "euclidean")
+```
+
+
+```{r}
+#ward
+fviz_nbclust(data_mall_standardize,FUNcluster = hcut,method = "silhouette",
+             hc_method = "ward.D",hc_metric = "euclidean")
+```
+
+using dendogram
+
+```{r}
+linkage_methods <- c("complete","average","centroid","ward.D")
+hc_mall_dend <- lapply(linkage_methods, function(i)
+  hclust(dist(data_mall_standardize,method = 'euclidean'),method = i)
+  )
+#complete
+fviz_dend(hc_mall_dend[[1]])
+```
+
+
+```{r}
+#average
+fviz_dend(hc_mall_dend[[2]])
+```
+
+```{r}
+#centroid
+fviz_dend(hc_mall_dend[[3]])
+```
+
+```{r}
+#ward
+fviz_dend(hc_mall_dend[[4]])
+```
+
+Hierarcichal Clustering Implementation
+
+```{r}
+hc_mall <- eclust(data_mall,stand = TRUE,FUNcluster = "hclust",k=5,hc_method = "complete",hc_metric = "euclidean",graph = F)
+hc_mall$cluster
+```
+
+Interpretation of the Formed Cluster
+
+```{r}
+aggregate(data_mall,by =list(cluster=hc_mall$cluster),
+            FUN = mean)
+```
+
+```{r}
+fviz_cluster(hc_mall)
+```
+
+```{r}
+pca_mall <- prcomp(data_mall_standardize)
+pca_mall$rotation
+```
+
+## Correlation Heatmap
+
+```{r}
+corrplot(mpg %>% select(where(is.numeric)) %>% cor,
+         method = "pie",type = "lower",
+         diag = FALSE)
+```
+
+```{r}
+mydata <- mtcars[, c(1,3,4,5,6,7)]
+head(mydata)
+```
+
+
+```{r}
+cormat <- round(cor(mydata),2)
+head(cormat)
+```
+
+
+```{r}
+melted_cormat <- melt(cormat)
+head(melted_cormat)
+```
+
+
+```{r}
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+```
+
+```{r}
+# Get lower triangle of the correlation matrix
+get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+}
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+upper_tri <- get_upper_tri(cormat)
+upper_tri
+```
+
+```{r}
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+# Heatmap
+ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+```
+
+```{r}
+#helper function to reorder correlation matrix:
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat)/2)
+hc <- hclust(dd)
+cormat <-cormat[hc$order, hc$order]
+}
+```
+
+
+```{r}
+# Reorder the correlation matrix
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+# Melt the correlation matrix
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Pearson\nCorrelation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+# Print the heatmap
+print(ggheatmap)
+```
+
+```{r}
+ggheatmap + 
+geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
+theme(
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(),
+  legend.justification = c(1, 0),
+  legend.position = c(0.6, 0.7),
+  legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                title.position = "top", title.hjust = 0.5))
+```
+
+## Dimension Reduction
+
+```{r}
+data_women_records <- read.xlsx("women_track_records.xlsx")
+head(data_women_records)
+```
+
+```{r}
+rownames(data_women_records) <- data_women_records$country
+data_women_records <- data_women_records[,-8]
+```
+
+```{r}
+cor_women <- cor(data_women_records)
+cor_women
+```
+
+```{r}
+ggcorrplot(cor_women,type="lower",lab = TRUE)
+```
+
+Matriks korelasi tidak hanya melihat rataan tetapi juga kekuatan hubungan antar peubahnya 
+Matriks kovarian tidak melihat seberapa kuat antar hubungan tetapi melihat arahnya saja, positif atau negatif
+
+
+```{r}
+pca_women_records <- prcomp(data_women_records,scale.=TRUE,center=TRUE)
+summary(pca_women_records)
+```
+
+83% PC1 bisa menjelaskan variable kita. dua komponen menjelaskan lebih banyak dibandingkan yang lain. 
+
+```{r}
+fviz_screeplot(pca_women_records,geom="line")
+```
+
+```{r}
+pca_women_records$rotation
+```
+
+```{r}
+pca_women_records$x
+```
+
+```{r}
+fviz_pca_ind(pca_women_records,col.ind = "darkred")
+```
+
+```{r}
+data(swiss)
+head(swiss)
+```
+
+
+```{r}
+# calculate distance matrix
+distance_swiss <- dist(swiss, method = "euclidean")
+# Metric MDS
+metricMDS_swiss <- cmdscale(d = distance_swiss,k = 2)
+colnames(metricMDS_swiss) <- c("Dim.1","Dim.2")
+metricMDS_swiss <- as.data.frame(metricMDS_swiss)
+head(metricMDS_swiss)
+```
+
+
+```{r}
+KruskalMDS_swiss <- isoMDS(d = distance_swiss,k = 2)
+```
+
+```{r}
+KruskalMDS_swiss <- as.data.frame(KruskalMDS_swiss$points)
+colnames(KruskalMDS_swiss) <- c("Dim.1","Dim.2")
+head(KruskalMDS_swiss)
+```
+
+```{r}
+ggscatter(metricMDS_swiss,x="Dim.1",y="Dim.2",color = "steelblue",
+          label = rownames(swiss),
+          repel = TRUE)
+```
+
+```{r}
+ggscatter(KruskalMDS_swiss,x="Dim.1",y="Dim.2",color = "steelblue",
+          label = rownames(swiss),
+          repel = TRUE)
+```
+
+
+
