@@ -10,6 +10,8 @@ library(skimr)
 library(dplyr)
 library(rgdal)
 library(leaflet)
+library(reshape)
+library(cowplot)
 blank_theme <- theme_minimal() +
   theme(
     axis.title.x = element_blank(),
@@ -344,6 +346,44 @@ ggplot(banjir_bandang_jawa_melt, aes(x=Tahun, y=value, color=Tahun)) +
 ```
 
 
+```{r}
+boxplot(bb_jawa$TotalKejadian ~ bb_jawa$Mitigasi,
+        #col=c("coral","green","skyblue"),
+        ylab="Total Kejadian Banjir Bandang",
+        xlab = "Banyaknya Mitigasi yang dilakukan")
+```
+
+```{r}
+ggplot(bb_jawa, aes(x=PeringatanDini, y=TotalKorban, color=PeringatanDini)) +
+  geom_boxplot() +
+  labs(title="", x="Tahun", y = "Banyaknya Korban Banjir Bandang") +
+  theme_classic()
+```
+
+
+```{r}
+b1 <- ggplot(bb_jawa, aes(x=PeringatanDini, y=TotalKorban, color=PeringatanDini)) +
+  geom_boxplot() +
+  labs(title="", x="Sistem Peringatan Dini", y = "Total Kejadian") +
+  theme_classic()
+
+b2 <- ggplot(bb_jawa, aes(x=Perlengkapan, y=TotalKorban, color=Perlengkapan)) +
+  geom_boxplot() +
+  labs(title="", x="Perlengkapan Keselamatan", y = "Total Kejadian") +
+  theme_classic()
+
+b3 <- ggplot(bb_jawa, aes(x=RambuEvakuasi, y=TotalKorban, color=RambuEvakuasi)) +
+  geom_boxplot() +
+  labs(title="", x="Rambu-rambu dan Jalur Evakuasi", y = "Total Kejadian") +
+  theme_classic()
+
+b4 <- ggplot(bb_jawa, aes(x=PerawatanPengairan, y=TotalKorban, color=PerawatanPengairan)) +
+  geom_boxplot() +
+  labs(title="", x="Pembuatan dan Perawatan DAS", y = "Total Kejadian") +
+  theme_classic()
+
+plot_grid(b1, b2, b3, b4, labels = c('A', 'B', 'C', 'D'))
+```
 
 
 ## Eksplorasi Bivariate
@@ -354,7 +394,7 @@ banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(Evakuasi==7 , p
 banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(Safety==5 , paste0(mitigasi, ", Safety"), 0)})
 banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(SisTsunami==3 , paste0(mitigasi, ", SPDT"), 0)})
 banjir_bandang_j <- within(banjir_bandang_j, {mitigasi <- ifelse(SisBencanaAlam==1 , paste0(mitigasi, ", SPD"), 0)})
-banjir_bandang_j <- within(banjir_bandang_j, {TopoLegend <- ifelse(Topografi==1 , "Lereng", ifelse(Topografi==2, "Lembah", "Daratan"))})
+banjir_bandang_j <- within(banjir_bandang_j, {TopoLegend <- ifelse(Topografi==1 , "Lereng", ifelse(Topografi==2, "Lembah", "Dataran"))})
 ```
 
 ```{r}
@@ -367,17 +407,18 @@ banjir_bandang_j <- banjir_bandang_j %>%
 ## Eksplorasi Multivariate
 
 ```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+topo1 <- ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   geom_bar(
     aes(fill = TopoLegend), stat = "identity", color = "white",
     position = position_dodge(0.9)
   ) + 
   labs(title="Jumlah korban bencana banjir bandang per provinsi berdasarkan topografi", x="Provinsi", y = "Korban Jiwa") + 
   theme_classic()
+topo1
 ```
 
 ```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+topo2 <- ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   geom_bar(
     aes(fill = TopoLegend), stat = "identity", color = "white",
     position = position_dodge(0.9)
@@ -386,10 +427,11 @@ ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   labs(title="Jumlah korban bencana banjir bandang dengan upaya sistem peringatan dini", x="Provinsi", y = "Korban Jiwa") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
   # theme_classic()
+topo2
 ```
 
 ```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+topo3 <- ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   geom_bar(
     aes(fill = TopoLegend), stat = "identity", color = "white",
     position = position_dodge(0.9)
@@ -398,10 +440,11 @@ ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   labs(title="Jumlah korban bencana banjir bandang dengan perlengkapan keselamatan", x="Provinsi", y = "Korban Jiwa") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
   # theme_classic()
+topo3
 ```
 
 ```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+topo4 <- ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   geom_bar(
     aes(fill = TopoLegend), stat = "identity", color = "white",
     position = position_dodge(0.9)
@@ -410,11 +453,12 @@ ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   labs(title="Jumlah korban bencana banjir bandang dengan jalur evakuasi", x="Provinsi", y = "Korban Jiwa") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
   # theme_classic()
+topo4
 ```
 
 
 ```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
+topo5 <- ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   geom_bar(
     aes(fill = TopoLegend), stat = "identity", color = "white",
     position = position_dodge(0.9)
@@ -423,19 +467,9 @@ ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
   labs(title="Jumlah korban bencana banjir bandang dengan perawatan DAS", x="Provinsi", y = "Korban Jiwa") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
   # theme_classic()
+topo5
 ```
 
-```{r}
-ggplot(banjir_bandang_j, aes(x = Prov, y = totalKorban)) +
-  geom_bar(
-    aes(fill = TopoLegend), stat = "identity", color = "white",
-    position = position_dodge(0.9)
-  ) + 
-  facet_wrap(~SisTsunami) +
-  labs(title="Jumlah korban bencana banjir bandang dengan peringatan Tsunami", x="Provinsi", y = "Korban Jiwa") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-  # theme_classic()
-```
 
 ```{r}
 ggballoonplot(banjir_bandang_j, x = "Prov", y = "TopoLegend", size = "totalKorban",
@@ -460,6 +494,16 @@ ggballoonplot(banjir_bandang_j, x = "Prov", y = "TopoLegend", size = "totalKorba
               ggtheme = theme_bw()) +
   scale_fill_viridis_c(option = "C") +
   labs(title="Jumlah korban bencana banjir bandang dengan perawatan DAS", x="Provinsi", y = "Korban Jiwa") 
+```
+
+```{r}
+banjir_bandang_j %>% group_by(SisBencanaAlam, MaintainDAS, totalKorban) %>%
+  tally() %>%
+  spread(MaintainDAS, n)
+```
+
+```{r}
+tab_xtab(var.row = banjir_bandang_j$totalKorban, var.col = banjir_bandang_j$MaintainDAS, title = "Tabulasi Silang Y dan D1", show.row.prc = TRUE)
 ```
 
 

@@ -1,0 +1,428 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(foreign)
+library(skimr)
+library(dplyr)
+library(rgdal)
+library(ggplot2)
+library(cowplot)
+library(reshape)
+# library(leaflet)
+blank_theme <- theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+```
+
+
+## Dataset PODES
+
+```{r}
+# load dataset podes part1-4
+podes2018_1 <- read.dbf("podes2018_desa_part1.dbf")
+podes2018_2 <- read.dbf("podes2018_desa_part2.dbf")
+podes2018_3 <- read.dbf("podes2018_desa_part3.dbf")
+podes2018_4 <- read.dbf("podes2018_desa_part4.dbf")
+```
+
+```{r}
+# merge podes 1 and 2
+topo <- podes2018_1 %>% select(R101, R102, R103, R104, R305B)
+podes2018_2 <- merge(podes2018_2, topo, by=c("R101", "R102", "R103", "R104"))
+```
+
+
+### Filter Data
+
+```{r}
+ff <- podes2018_2 %>%
+  select(prov = R101N,
+         dist = R102N,
+         sub_dist = R103N,
+         vill_code = R104,
+         vill = R104N,
+         topo = R305B,
+         flash_floods = R601CK2, 
+         total_event15 = R601CK3, 
+         death_toll15 = R601CK4, 
+         total_event16 = R601CK5, 
+         death_toll16 = R601CK6, 
+         total_event17 = R601CK7, 
+         death_toll17 = R601CK8, 
+         early_warning_sys = R602A,
+         safety = R602C, 
+         evacuation = R602D, 
+         watershed = R602E) %>%
+  filter(flash_floods == 1) 
+```
+
+```{r}
+bb <- podes2018_2 %>%
+  select(prov = R101N,
+         kab_kot = R102N,
+         kec = R103N,
+         kode_desa = R104,
+         desa = R104N,
+         topo = R305B,
+         banjir_bandang = R601CK2, 
+         total_kejadian15 = R601CK3, 
+         korban_jiwa15 = R601CK4, 
+         total_kejadian16 = R601CK5, 
+         korban_jiwa16 = R601CK6, 
+         total_kejadian17 = R601CK7, 
+         korban_jiwa17 = R601CK8, 
+         peringatan_dini = R602A,
+         perl_keselamatan = R602C, 
+         evakuasi = R602D, 
+         monitor_das = R602E) %>%
+  filter(banjir_bandang == 1) 
+```
+
+
+```{r}
+bb_java <- bb %>% 
+  filter(prov %in% c('DKI JAKARTA', 'JAWA BARAT', 'JAWA TENGAH', 'DI YOGYAKARTA', 'JAWA TIMUR', 'BANTEN')) 
+```
+
+```{r}
+ff_java <- ff %>% 
+  filter(prov %in% c('DKI JAKARTA', 'JAWA BARAT', 'JAWA TENGAH', 'DI YOGYAKARTA', 'JAWA TIMUR', 'BANTEN')) 
+```
+
+## Univariate Analysis
+
+### Histogram
+
+```{r}
+ff_java <- ff_java %>% 
+  mutate(total_event = total_event15 + total_event16 + total_event17) %>%
+  mutate(death_toll = death_toll15 + death_toll16 + death_toll17)
+```
+
+```{r}
+bb_java <- bb_java %>% 
+  mutate(total_kejadian = total_kejadian15 + total_kejadian16 + total_kejadian17) %>%
+  mutate(korban_jiwa = korban_jiwa15 + korban_jiwa16 + korban_jiwa17)
+```
+
+
+```{r}
+ggplot(ff_java, aes(x=total_event, fill=prov)) +
+  geom_histogram(position = "identity", binwidth = 1) + 
+  labs(title="Flash floods disaster", x="Total incidents per village", y = "Frequencies") +
+  guides(fill=guide_legend(title="Provinces")) +
+  theme_classic()
+```
+
+```{r}
+ggplot(bb_java, aes(x=total_kejadian, fill=prov)) +
+  geom_histogram(position = "identity", binwidth = 1) + 
+  labs(title="Bencana banjir bandang",x="Total kejadian per desa", y = "Frekuensi")+
+  guides(fill=guide_legend(title="Provinsi")) +
+  theme_classic()
+```
+
+### Boxplot
+
+```{r}
+bb_java_melt <- bb_java %>% dplyr::select(prov, desa, korban_jiwa15, korban_jiwa16, korban_jiwa17)
+bb_java_melt <- melt(bb_java_melt, id=c("prov", "desa"), measure.vars = c("korban_jiwa15", "korban_jiwa16", "korban_jiwa17"), variable.name = "tahun")
+ff_java_melt <- ff_java %>% dplyr::select(prov, vill, death_toll15, death_toll16, death_toll17)
+ff_java_melt <- melt(ff_java_melt, id=c("prov", "vill"), measure.vars = c("death_toll15", "death_toll16", "death_toll17"), variable.name = "tahun")
+```
+
+
+```{r}
+colnames(bb_java_melt)[3] <- "tahun"
+ggplot(bb_java_melt, aes(x=tahun, y=value, color=tahun)) +
+  geom_boxplot() +
+  labs(title="", x="Tahun", y = "Banyaknya Korban Banjir Bandang") +
+  theme_classic()
+```
+
+```{r}
+colnames(ff_java_melt)[3] <- "year"
+ggplot(ff_java_melt, aes(x=year, y=value, color=year)) +
+  geom_boxplot() +
+  labs(title="", x="Year", y = "Total fatalities") +
+  theme_classic()
+```
+
+## Bivariate Analysis
+
+```{r}
+#ganti mitigasi jadi dummy (0,1)
+bb_java$peringatan_dini <- ifelse(bb_java$peringatan_dini==1,1,0)
+bb_java$perl_keselamatan <- ifelse(bb_java$perl_keselamatan==5,1,0)
+bb_java$evakuasi <- ifelse(bb_java$evakuasi==7,1,0)
+bb_java$monitor_das <- ifelse(bb_java$monitor_das==1,1,0)
+bb_java$mitigasi <- bb_java$peringatan_dini + bb_java$perl_keselamatan + bb_java$evakuasi + bb_java$monitor_das
+
+# ubah mitigasi ke faktor
+bb_java$peringatan_dini <- as.factor(bb_java$peringatan_dini)
+bb_java$perl_keselamatan <- as.factor(bb_java$perl_keselamatan)
+bb_java$evakuasi <- as.factor(bb_java$evakuasi)
+bb_java$monitor_das <- as.factor(bb_java$monitor_das)
+bb_java$mitigasi <- as.factor(bb_java$mitigasi)
+
+bb_java$peringatan_dini_ket <- ifelse(bb_java$peringatan_dini==1,"Ada","Tidak ada")
+bb_java$perl_keselamatan_ket <- ifelse(bb_java$perl_keselamatan==1,"Ada","Tidak ada")
+bb_java$evakuasi_ket <- ifelse(bb_java$evakuasi==1,"Ada","Tidak ada")
+bb_java$monitor_das_ket <- ifelse(bb_java$monitor_das==1,"Ada","Tidak ada")
+
+#
+#ganti mitigasi jadi dummy (0,1)
+ff_java$early_warning_sys <- ifelse(ff_java$early_warning_sys==1,1,0)
+ff_java$safety <- ifelse(ff_java$safety==5,1,0)
+ff_java$evacuation <- ifelse(ff_java$evacuation==7,1,0)
+ff_java$watershed <- ifelse(ff_java$watershed==1,1,0)
+ff_java$mitigation <- ff_java$early_warning_sys + ff_java$safety + ff_java$evacuation + ff_java$watershed
+
+# ubah mitigasi ke faktor
+ff_java$early_warning_sys <- as.factor(ff_java$early_warning_sys)
+ff_java$safety <- as.factor(ff_java$safety)
+ff_java$evacuation <- as.factor(ff_java$evacuation)
+ff_java$watershed <- as.factor(ff_java$watershed)
+ff_java$mitigation <- as.factor(ff_java$mitigation)
+
+ff_java$early_warning_sys_desc <- ifelse(ff_java$early_warning_sys==1,"Yes","No")
+ff_java$safety_desc <- ifelse(ff_java$safety==1,"Yes","No")
+ff_java$evacuation_desc <- ifelse(ff_java$evacuation==1,"Yes","No")
+ff_java$watershed_desc <- ifelse(ff_java$watershed==1,"Yes","No")
+```
+
+
+```{r}
+boxplot(bb_java$total_kejadian ~ bb_java$mitigasi,
+        col=c("coral","green","skyblue", "red", "yellow"),
+        ylab="Total kejadian banjir bandang",
+        xlab = "Jumlah Mitigasi yang dilakukan")
+
+boxplot(ff_java$total_event ~ ff_java$mitigation,
+        col=c("coral","green","skyblue", "red", "yellow"),
+        ylab="Total incidents of flash floods",
+        xlab = "Number of mitigations")
+```
+
+
+```{r}
+b1 <- ggplot(bb_java, aes(x=peringatan_dini_ket, y=korban_jiwa, color=peringatan_dini_ket)) +
+  geom_boxplot() +
+  labs(title="Sistem peringatan dini", x="", y = "Korban jiwa") +
+  # guides(color=guide_legend(title="Peringatan dini")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+b2 <- ggplot(bb_java, aes(x=perl_keselamatan_ket, y=korban_jiwa, color=perl_keselamatan_ket)) +
+  geom_boxplot() +
+  labs(title="Perlengkapan keselamatan", x="", y = "Korban jiwa") +
+  # guides(color=guide_legend(title="Perlengkapan\nkeselamatan")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+b3 <- ggplot(bb_java, aes(x=evakuasi_ket, y=korban_jiwa, color=evakuasi_ket)) +
+  geom_boxplot() +
+  labs(title="Rambu-rambu dan jalur evakuasi", x="", y = "Korban jiwa") +
+  # guides(color=guide_legend(title="Rambu-rambu dan\njalur evakuasi")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+b4 <- ggplot(bb_java, aes(x=monitor_das_ket, y=korban_jiwa, color=monitor_das_ket)) +
+  geom_boxplot() +
+  labs(title="Pembuatan dan Perawatan DAS", x="", y = "Korban jiwa") +
+  # guides(color=guide_legend(title="Pembuatan dan\nPerawatan DAS")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+plot_grid(b1, b2, b3, b4, 
+          labels = c('A', 'B', 'C', 'D'))
+
+f1 <- ggplot(ff_java, aes(x=early_warning_sys_desc, y=death_toll, color=early_warning_sys_desc)) +
+  geom_boxplot() +
+  labs(title="Early warning system", x="", y = "Death toll") +
+  # guides(color=guide_legend(title="Peringatan dini")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+f2 <- ggplot(ff_java, aes(x=safety_desc, y=death_toll, color=safety_desc)) +
+  geom_boxplot() +
+  labs(title="Safety equipment", x="", y = "Death toll") +
+  # guides(color=guide_legend(title="Perlengkapan\nkeselamatan")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+f3 <- ggplot(ff_java, aes(x=evacuation_desc, y=death_toll, color=evacuation_desc)) +
+  geom_boxplot() +
+  labs(title="Evacuation route signs", x="", y = "Death toll") +
+  # guides(color=guide_legend(title="Rambu-rambu dan\njalur evakuasi")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+f4 <- ggplot(ff_java, aes(x=watershed_desc, y=death_toll, color=watershed_desc)) +
+  geom_boxplot() +
+  labs(title="Watershed management", x="", y = "Death toll") +
+  # guides(color=guide_legend(title="Pembuatan dan\nPerawatan DAS")) +
+  theme_classic() + ylim(0, 70) +
+  theme(legend.position="none")
+
+plot_grid(f1, f2, f3, f4, 
+          labels = c('A', 'B', 'C', 'D'))
+```
+
+## Multivariate Analysis
+
+```{r}
+bb_java <- within(bb_java, {topo_legend <- ifelse(topo==1 , "Lereng", ifelse(topo==2, "Lembah", "Dataran"))})
+ff_java <- within(ff_java, {topo_legend <- ifelse(topo==1 , "Hills", ifelse(topo==2, "Valleys", "Plains"))})
+```
+
+```{r}
+topo1 <- ggplot(bb_java, aes(x = prov, y = korban_jiwa)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  labs(title="Jumlah korban bencana banjir bandang per provinsi berdasarkan topografi", x="Provinsi", y = "Korban jiwa") + 
+  guides(fill=guide_legend(title="Topografi")) +
+  theme_classic()
+topo1
+
+topo2 <- ggplot(ff_java, aes(x = prov, y = death_toll)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  labs(title="Flash floods fatality per province based on topography", x="Province", y = "Death toll") +
+  guides(fill=guide_legend(title="Topography")) +
+  theme_classic()
+topo2
+```
+
+```{r}
+miti1 <- ggplot(bb_java, aes(x = prov, y = korban_jiwa)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~peringatan_dini_ket) +
+  labs(title="Jumlah korban bencana banjir bandang dengan upaya sistem peringatan dini", x="Provinsi", y = "Korban jiwa") + 
+  guides(fill=guide_legend(title="Topografi")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti1
+
+miti2 <- ggplot(ff_java, aes(x = prov, y = death_toll)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~early_warning_sys_desc) +
+  labs(title="Flash floods fatality per province with an early warning system", x="Province", y = "Death toll") + 
+  guides(fill=guide_legend(title="Topography")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti2
+```
+
+```{r}
+miti3 <- ggplot(bb_java, aes(x = prov, y = korban_jiwa)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~perl_keselamatan_ket) +
+  labs(title="Jumlah korban bencana banjir bandang dengan perlengkapan keselamatan", x="Provinsi", y = "Korban jiwa") + 
+  guides(fill=guide_legend(title="Topografi")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti3
+
+miti4 <- ggplot(ff_java, aes(x = prov, y = death_toll)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~safety_desc) +
+  labs(title="Flash floods fatality per province with safety equipment", x="Province", y = "Death toll") + 
+  guides(fill=guide_legend(title="Topography")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti4
+```
+
+```{r}
+miti5 <- ggplot(bb_java, aes(x = prov, y = korban_jiwa)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~evakuasi_ket) +
+  labs(title="Jumlah korban bencana banjir bandang dengan jalur evakuasi", x="Provinsi", y = "Korban jiwa") + 
+  guides(fill=guide_legend(title="Topografi")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti5
+
+miti6 <- ggplot(ff_java, aes(x = prov, y = death_toll)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~evacuation_desc) +
+  labs(title="Flash floods fatality per province with evacuation route signs", x="Province", y = "Death toll") + 
+  guides(fill=guide_legend(title="Topography")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti6
+```
+
+```{r}
+miti7 <- ggplot(bb_java, aes(x = prov, y = korban_jiwa)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~monitor_das_ket) +
+  labs(title="Jumlah korban bencana banjir bandang dengan perawatan DAS", x="Provinsi", y = "Korban jiwa") + 
+  guides(fill=guide_legend(title="Topografi")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti7
+
+miti8 <- ggplot(ff_java, aes(x = prov, y = death_toll)) +
+  geom_bar(
+    aes(fill = topo_legend), stat = "identity", color = "white",
+    position = position_dodge(0.9)
+  ) + 
+  facet_wrap(~watershed_desc) +
+  labs(title="Flash floods fatality per province with watershed management", x="Province", y = "Death toll") + 
+  guides(fill=guide_legend(title="Topography")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  # theme_classic()
+miti8
+```
+
+
+1. merge data
+2. lihat jumlah bencana paling besar
+3. lihat jumlah bencana banjir bandang terbesar
+4. bikin table kontingensi ada/tdk kejadian bencana banjir di tiap provinsi
+5. bikin table kontingensi ada/tdk kejadian bencana banjir terhadap aksi mitigasi
+6. bikin table kontingensi ada/tdk kejadian bencana tahun 2015-2017 lalu compare
+   -- bikin analisis chisquare
+7. bikin pie chart
+8. bikin histogram
+9. bikin boxplot
+10. bikin histo multivariate
+
